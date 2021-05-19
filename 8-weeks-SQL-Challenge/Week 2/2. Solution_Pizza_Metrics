@@ -75,7 +75,7 @@
     SELECT
       order_id,
       runner_id,
-      pickup_time,
+      CASE WHEN order_id = '3' THEN (pickup_time + INTERVAL '13 hour') ELSE pickup_time END AS pickup_time,
       CAST( regexp_replace(distance, '[a-z]+', '' ) AS DECIMAL(5,2) ) AS distance,
     	CAST( regexp_replace(duration, '[a-z]+', '' ) AS INT ) AS duration,
     	cancellation
