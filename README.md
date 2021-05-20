@@ -1,2 +1,2 @@
 # SQL-projects
-All my SQL works
+I will post in this repository all my SQL challenges and project.
