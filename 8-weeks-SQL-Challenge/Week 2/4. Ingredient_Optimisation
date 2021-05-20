@@ -1,0 +1,528 @@
+-- Data with Danny - 8 Week Challenge (Week 2)
+-- https://8weeksqlchallenge.com/case-study-2/
+
+-- Done with PostgreSQL
+
+--PART 3: Ingredient Optimisation!
+
+--Questions:
+-- 1) What are the standard ingredients for each pizza?
+-- 2) What was the most commonly added extra?
+-- 3) What was the most common exclusion?
+-- 4) Generate an order item for each record in the customers_orders table in the format of one of the following:
+--     Meat Lovers
+--     Meat Lovers - Exclude Beef
+--     Meat Lovers - Extra Bacon
+--     Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
+-- 5) Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
+--     For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+-- 6) What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--Previous tables which we will still use for this part:
+
+    DROP TABLE IF EXISTS customer_orders_cleaned;
+    CREATE TEMP TABLE customer_orders_cleaned AS WITH first_layer AS (
+      SELECT
+        order_id,
+        customer_id,
+        pizza_id,
+        CASE
+          WHEN exclusions = '' THEN NULL
+          WHEN exclusions = 'null' THEN NULL
+          ELSE exclusions
+        END as exclusions,
+        CASE
+          WHEN extras = '' THEN NULL
+          WHEN extras = 'null' THEN NULL
+          ELSE extras
+        END as extras,
+        order_time
+      FROM
+        customer_orders
+    )
+    SELECT
+      ROW_NUMBER() OVER (                     
+        ORDER BY
+          order_id,
+          pizza_id
+      ) AS row_number_order,
+      order_id,
+      customer_id,
+      pizza_id,
+      exclusions,
+      extras,
+      order_time
+    FROM
+      first_layer;
+
+---
+
+
+    DROP TABLE IF EXISTS runner_orders_cleaned;
+    CREATE TEMP TABLE runner_orders_cleaned AS WITH first_layer AS (
+      SELECT
+        order_id,
+        runner_id,
+        CAST(
+          CASE
+            WHEN pickup_time = 'null' THEN NULL
+            ELSE pickup_time
+          END AS timestamp
+        ) AS pickup_time,
+        CASE
+          WHEN distance = '' THEN NULL
+          WHEN distance = 'null' THEN NULL
+          ELSE distance
+        END as distance,
+        CASE
+          WHEN duration = '' THEN NULL
+          WHEN duration = 'null' THEN NULL
+          ELSE duration
+        END as duration,
+        CASE
+          WHEN cancellation = '' THEN NULL
+          WHEN cancellation = 'null' THEN NULL
+          ELSE cancellation
+        END as cancellation
+      FROM
+        runner_orders
+    )
+    SELECT
+      order_id,
+      runner_id,
+      CASE WHEN order_id = '3' THEN (pickup_time + INTERVAL '13 hour') ELSE pickup_time END AS pickup_time,
+      CAST( regexp_replace(distance, '[a-z]+', '' ) AS DECIMAL(5,2) ) AS distance,
+    	CAST( regexp_replace(duration, '[a-z]+', '' ) AS INT ) AS duration,
+    	cancellation
+    FROM
+      first_layer;
+
+
+
+------------------------------------------------------
+-- 1) What are the standard ingredients for each pizza?
+
+    WITH pizza_recipes_unstacked AS (
+      SELECT
+        pizza_id,
+        CAST(
+          UNNEST(
+            string_to_array(toppings, ', ')
+          ) AS INT
+        ) AS topping_id
+      FROM
+        pizza_recipes
+    )
+    SELECT
+      t1.pizza_id,
+      t1.pizza_name,
+      t2.topping_id,
+      t3.topping_name
+    FROM
+      pizza_names t1
+      JOIN pizza_recipes_unstacked t2 ON t1.pizza_id = t2.pizza_id
+      JOIN pizza_toppings t3 ON t2.topping_id = t3.topping_id
+    ORDER BY 
+      t1.pizza_id,
+      t2.topping_id;
+
+| pizza_id | pizza_name | topping_id | topping_name |
+| -------- | ---------- | ---------- | ------------ |
+| 1        | Meatlovers | 1          | Bacon        |
+| 1        | Meatlovers | 2          | BBQ Sauce    |
+| 1        | Meatlovers | 3          | Beef         |
+| 1        | Meatlovers | 4          | Cheese       |
+| 1        | Meatlovers | 5          | Chicken      |
+| 1        | Meatlovers | 6          | Mushrooms    |
+| 1        | Meatlovers | 8          | Pepperoni    |
+| 1        | Meatlovers | 10         | Salami       |
+| 2        | Vegetarian | 4          | Cheese       |
+| 2        | Vegetarian | 6          | Mushrooms    |
+| 2        | Vegetarian | 7          | Onions       |
+| 2        | Vegetarian | 9          | Peppers      |
+
+------------------------------------------------------
+--2) What was the most commonly added extra?
+
+    SELECT
+      extras,
+      topping_name,
+      COUNT(extras) AS times_ordered
+    FROM
+      (
+        SELECT
+          order_id,
+          CAST(
+            UNNEST(string_to_array(extras, ', ')) AS INT
+          ) AS extras
+        FROM
+          customer_orders_cleaned
+      ) AS extras_information
+    JOIN pizza_toppings ON pizza_toppings.topping_id = extras_information.extras
+    GROUP BY
+      extras,
+      topping_name
+    ORDER BY
+     times_ordered DESC;
+
+| extras | topping_name | times_ordered |
+| ------ | ------------ | ------------- |
+| 1      | Bacon        | 4             |
+| 4      | Cheese       | 1             |
+| 5      | Chicken      | 1             |
+
+------------------------------------------------------
+-- 3) What was the most common exclusion?
+
+    SELECT
+      exclusions,
+      topping_name,
+      COUNT(exclusions) AS times_ordered
+    FROM
+      (
+        SELECT
+          order_id,
+          CAST(
+            UNNEST(string_to_array(exclusions, ', ')) AS INT
+          ) AS exclusions
+        FROM
+          customer_orders_cleaned
+      ) AS exclusions_information
+    JOIN pizza_toppings ON pizza_toppings.topping_id = exclusions_information.exclusions
+    GROUP BY
+      exclusions,
+      topping_name
+    ORDER BY
+     times_ordered DESC;
+
+| exclusions | topping_name | times_ordered |
+| ---------- | ------------ | ------------- |
+| 4          | Cheese       | 4             |
+| 2          | BBQ Sauce    | 1             |
+| 6          | Mushrooms    | 1             |
+
+------------------------------------------------------
+-- 4) Generate an order item for each record in the customers_orders table in the format of one of the following:
+--     Meat Lovers
+--     Meat Lovers - Exclude Beef
+--     Meat Lovers - Extra Bacon
+--     Meat Lovers - Exclude Cheese, Bacon - Extra Mushroom, Peppers
+
+    DROP VIEW IF EXISTS extras_exclusions;
+    CREATE VIEW extras_exclusions AS
+    SELECT
+      order_id,
+      customers_info.pizza_id,
+      pizza_names.pizza_name,
+      exclusion_col1,
+      top1.topping_name AS topping_name1,
+      CASE
+        WHEN exclusion_col2 = '' THEN NULL
+        ELSE TRIM(exclusion_col2) :: INTEGER
+      END as exclusion_col2,
+      extras_col1,
+      top2.topping_name AS topping_name3,
+      CASE
+        WHEN extras_col2 = '' THEN NULL
+        ELSE TRIM(extras_col2) :: INTEGER
+      END as extras_col2
+    FROM
+      (
+        SELECT
+          order_id,
+          pizza_id,
+          split_part(exclusions, ',', 1) AS exclusion_col1,  
+          split_part(exclusions, ',', 2) AS exclusion_col2,  
+          split_part(extras, ',', 1) AS extras_col1,
+          split_part(extras, ',', 2) AS extras_col2
+        FROM
+          customer_orders_cleaned
+        ORDER BY
+          order_id
+      ) AS customers_info
+      JOIN pizza_names ON customers_info.pizza_id = pizza_names.pizza_id
+      LEFT JOIN pizza_toppings top1 ON customers_info.exclusion_col1 :: INT = top1.topping_id
+      LEFT JOIN pizza_toppings top2 ON customers_info.extras_col1 :: INT = top2.topping_id;
+
+---
+
+    SELECT
+      order_id,
+      CONCAT(pizza_name, ' ', exclusions, ' ', extras) AS pizza_details
+    FROM
+      (
+        WITH tabular_modifications AS(
+          SELECT
+            order_id,
+            pizza_id,
+            pizza_name,
+            exclusion_col1,
+            topping_name1,
+            exclusion_col2 :: INT,
+            t2.topping_name AS topping_name2,
+            extras_col1,
+            topping_name3,
+            extras_col2 :: INT,
+            t3.topping_name AS topping_name4
+          FROM
+            extras_exclusions t1
+            LEFT JOIN pizza_toppings t2 ON t1.exclusion_col2 = t2.topping_id
+            LEFT JOIN pizza_toppings t3 ON t1.extras_col2 = t3.topping_id
+        )
+        SELECT
+          order_id,
+          pizza_id,
+          pizza_name,
+          CASE
+            WHEN exclusion_col1 IS NULL THEN CONCAT(topping_name1, ' ', topping_name2)
+            WHEN exclusion_col2 IS NULL THEN CONCAT('- Exclude', ' ', topping_name1)
+            ELSE CONCAT('- Exclude', ' ', topping_name1, ', ', topping_name2) 
+          END AS exclusions,
+          CASE
+            WHEN extras_col1 IS NULL THEN CONCAT(topping_name3, ' ', topping_name4)
+            WHEN extras_col2 IS NULL THEN CONCAT('- Extra', ' ', topping_name3)
+            ELSE CONCAT('- Extra', ' ', topping_name3, ', ', topping_name4)
+          END AS extras
+        FROM
+          tabular_modifications
+      ) AS Modified_concat
+    ORDER BY 
+      order_id;
+
+| order_id | pizza_details                                                   |
+| -------- | --------------------------------------------------------------- |
+| 1        | Meatlovers                                                      |
+| 2        | Meatlovers                                                      |
+| 3        | Vegetarian                                                      |
+| 3        | Meatlovers                                                      |
+| 4        | Meatlovers - Exclude Cheese                                     |
+| 4        | Meatlovers - Exclude Cheese                                     |
+| 4        | Vegetarian - Exclude Cheese                                     |
+| 5        | Meatlovers   - Extra Bacon                                      |
+| 6        | Vegetarian                                                      |
+| 7        | Vegetarian   - Extra Bacon                                      |
+| 8        | Meatlovers                                                      |
+| 9        | Meatlovers - Exclude Cheese - Extra Bacon, Chicken              |
+| 10       | Meatlovers - Exclude BBQ Sauce, Mushrooms - Extra Bacon, Cheese |
+| 10       | Meatlovers                                                      |
+
+------------------------------------------------------
+-- 5) Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
+--     For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+
+-- Step 1: create basic recipe table (recycling question 1)
+    DROP TABLE IF EXISTS classical_recipe;
+    CREATE TEMP TABLE classical_recipe AS
+    WITH pizza_recipes_unstacked AS (
+      SELECT
+        pizza_id,
+        CAST(
+          UNNEST(
+            string_to_array(toppings, ', ')
+          ) AS INT
+        ) AS topping_id
+      FROM
+        pizza_recipes
+    )
+    SELECT
+      t4.row_number_order,
+      t4.order_id,
+      t4.customer_id,
+      t1.pizza_id,
+      t1.pizza_name,
+      t2.topping_id,
+      t3.topping_name
+    FROM
+      pizza_names t1
+      JOIN pizza_recipes_unstacked t2 ON t1.pizza_id = t2.pizza_id
+      JOIN pizza_toppings t3 ON t2.topping_id = t3.topping_id
+      RIGHT JOIN customer_orders_cleaned t4 ON t1.pizza_id = t4.pizza_id;
+
+
+
+-- Step 2: unpivot extras and exclusions table into 2 separated table:
+
+    DROP TABLE IF EXISTS orders_exclusions;
+    CREATE TEMP TABLE orders_exclusions AS 
+    SELECT 
+      row_number_order,
+      order_id,
+    	customer_id,
+    	customer_orders_cleaned.pizza_id,
+    	pizza_name,
+    	CAST(UNNEST(string_to_array(COALESCE(exclusions, '0'), ',')) AS INT) AS exclusions
+      FROM 
+        customer_orders_cleaned
+      JOIN pizza_names ON customer_orders_cleaned.pizza_id = pizza_names.pizza_id
+      ORDER BY
+        order_id;
+ 
+ ---
+
+    DROP TABLE IF EXISTS orders_extras;
+    CREATE TEMP TABLE orders_extras AS 
+    SELECT 
+      row_number_order,
+      order_id,
+    	customer_id,
+    	customer_orders_cleaned.pizza_id,
+    	pizza_name,
+    	CAST(UNNEST(string_to_array(COALESCE(extras, '0'), ',')) AS INT) AS extras
+      FROM 
+        customer_orders_cleaned
+      JOIN pizza_names ON customer_orders_cleaned.pizza_id = pizza_names.pizza_id
+      ORDER BY
+        order_id;
+
+
+--step 3: Join all the tables (Union extras, Except exclusions):
+
+    DROP TABLE IF EXISTS pizzas_details;
+    CREATE TEMP TABLE pizzas_details AS
+    WITH first_layer AS (SELECT
+      row_number_order,
+      order_id,
+      customer_id,
+      pizza_id,
+      pizza_name,
+      topping_id
+    FROM
+      classical_recipe
+    EXCEPT
+    SELECT
+      *
+    FROM
+      orders_exclusions
+    UNION ALL
+    SELECT
+      *
+    FROM
+      orders_extras
+    WHERE
+      extras != 0)
+    SELECT
+      row_number_order,
+      order_id,
+      customer_id,  
+      pizza_id,
+      pizza_name,
+      first_layer.topping_id,
+      topping_name
+    FROM
+      first_layer
+    LEFT JOIN pizza_toppings ON first_layer.topping_id = pizza_toppings.topping_id
+    ORDER BY
+      row_number_order,
+      order_id,
+      pizza_id,
+      topping_id;
+
+
+-- Step 4: let's  now reshape the data to answer the question
+
+    WITH counting_table AS(         
+      SELECT
+        row_number_order,
+        order_id,
+        customer_id
+        pizza_id,
+        pizza_name,
+        topping_id,
+        topping_name,
+        COUNT(topping_id) AS count_ingredient
+      FROM
+        pizzas_details
+      GROUP BY
+        row_number_order,
+        order_id,
+        customer_id,
+        pizza_id,
+        pizza_name,
+        topping_id,
+        topping_name)
+    , text_table AS(              
+      SELECT
+        row_number_order,
+        order_id,
+        pizza_id,
+        pizza_name,
+        topping_id,
+        CASE WHEN count_ingredient = 1 THEN topping_name 
+             ELSE CONCAT(count_ingredient, 'x ',topping_name) END AS ingredient_count
+      FROM
+        counting_table)
+    , group_text AS(              
+      SELECT
+        row_number_order,
+        order_id,
+        pizza_id,
+        pizza_name,
+        STRING_AGG(ingredient_count, ', ') AS recipe
+      FROM
+        text_table
+      GROUP BY
+        row_number_order,
+        order_id,
+        pizza_id,
+        pizza_name)
+    SELECT
+      row_number_order,
+      order_id,
+      CONCAT(pizza_name, ': ', recipe)
+    FROM 
+      group_text
+    ORDER BY 
+      row_number_order, order_id;
+
+| row_number_order | order_id | concat                                                                               |
+| ---------------- | -------- | ------------------------------------------------------------------------------------ |
+| 1                | 1        | Meatlovers: Cheese, Chicken, Salami, Bacon, Beef, Pepperoni, Mushrooms, BBQ Sauce    |
+| 2                | 2        | Meatlovers: Chicken, BBQ Sauce, Pepperoni, Salami, Cheese, Beef, Bacon, Mushrooms    |
+| 3                | 3        | Meatlovers: Salami, Chicken, BBQ Sauce, Beef, Bacon, Mushrooms, Pepperoni, Cheese    |
+| 4                | 3        | Vegetarian: Onions, Tomato Sauce, Mushrooms, Tomatoes, Peppers, Cheese               |
+| 5                | 4        | Meatlovers: BBQ Sauce, Mushrooms, Beef, Salami, Pepperoni, Bacon, Chicken            |
+| 6                | 4        | Meatlovers: Chicken, Mushrooms, Beef, Pepperoni, Bacon, BBQ Sauce, Salami            |
+| 7                | 4        | Vegetarian: Tomato Sauce, Onions, Tomatoes, Peppers, Mushrooms                       |
+| 8                | 5        | Meatlovers: Cheese, Pepperoni, BBQ Sauce, 2x Bacon, Chicken, Salami, Mushrooms, Beef |
+| 9                | 6        | Vegetarian: Tomato Sauce, Onions, Mushrooms, Cheese, Tomatoes, Peppers               |
+| 10               | 7        | Vegetarian: Mushrooms, Bacon, Tomato Sauce, Peppers, Onions, Tomatoes, Cheese        |
+| 11               | 8        | Meatlovers: Pepperoni, Beef, Salami, Cheese, Bacon, Mushrooms, Chicken, BBQ Sauce    |
+| 12               | 9        | Meatlovers: Beef, Pepperoni, Mushrooms, 2x Chicken, 2x Bacon, BBQ Sauce, Salami      |
+| 13               | 10       | Meatlovers: Mushrooms, Chicken, Bacon, Salami, Cheese, BBQ Sauce, Beef, Pepperoni    |
+| 14               | 10       | Meatlovers: 2x Bacon, Chicken, Beef, 2x Cheese, Salami, Pepperoni                    |
+
+------------------------------------------------------
+-- 6) What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+
+    SELECT 
+      topping_id,
+      topping_name,
+      COUNT(topping_id) as time_used
+    FROM 
+      pizzas_details
+    GROUP BY
+      topping_id,
+      topping_name
+    ORDER BY
+      time_used DESC;
+
+| topping_id | topping_name | time_used |
+| ---------- | ------------ | --------- |
+| 1          | Bacon        | 14        |
+| 6          | Mushrooms    | 13        |
+| 5          | Chicken      | 11        |
+| 4          | Cheese       | 11        |
+| 8          | Pepperoni    | 10        |
+| 10         | Salami       | 10        |
+| 3          | Beef         | 10        |
+| 2          | BBQ Sauce    | 9         |
+| 9          | Peppers      | 4         |
+| 7          | Onions       | 4         |
+| 11         | Tomatoes     | 4         |
+| 12         | Tomato Sauce | 4         |
+
+---
+
+[View on DB Fiddle](https://www.db-fiddle.com/f/7VcQKQwsS3CTkGRFG7vu98/4)
