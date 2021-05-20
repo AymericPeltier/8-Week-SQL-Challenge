@@ -1,3 +1,6 @@
+-- Data with Danny - 8 Week Challenge (Week 2)
+-- Case available at: https://8weeksqlchallenge.com/case-study-2/
+
 -- **Schema (PostgreSQL v13)**
 
     DROP TABLE IF EXISTS runners;
