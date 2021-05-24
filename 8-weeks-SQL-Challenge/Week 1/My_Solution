@@ -212,13 +212,12 @@
       S.product_id,
       M.product_name
     ORDER BY
-      total_order DESC;
+      total_order DESC
+    LIMIT 1;
 
 | product_id | product_name | total_order |
 | ---------- | ------------ | ----------- |
 | 3          | ramen        | 8           |
-| 2          | curry        | 4           |
-| 1          | sushi        | 3           |
 
 --------------------------------------------------------
 -- 5. Which item was the most popular for each customer?
