@@ -81,7 +81,7 @@ FROM
 ---
 
 
-   DROP TABLE IF EXISTS runner_orders_cleaned;
+DROP TABLE IF EXISTS runner_orders_cleaned;
 CREATE TEMP TABLE runner_orders_cleaned AS WITH first_layer AS (
   SELECT
     order_id,
