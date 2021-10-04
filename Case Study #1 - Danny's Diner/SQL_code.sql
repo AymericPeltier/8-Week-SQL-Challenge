@@ -38,25 +38,6 @@
     LEFT JOIN members as MB ON S.customer_id = MB.customer_id
     ORDER BY customer_id, order_date;
 
-| customer_id | order_date               | product_id | product_name | price | member |
-| ----------- | ------------------------ | ---------- | ------------ | ----- | ------ |
-| A           | 2021-01-01T00:00:00.000Z | 1          | sushi        | 10    | N      |
-| A           | 2021-01-01T00:00:00.000Z | 2          | curry        | 15    | N      |
-| A           | 2021-01-07T00:00:00.000Z | 2          | curry        | 15    | Y      |
-| A           | 2021-01-10T00:00:00.000Z | 3          | ramen        | 12    | Y      |
-| A           | 2021-01-11T00:00:00.000Z | 3          | ramen        | 12    | Y      |
-| A           | 2021-01-11T00:00:00.000Z | 3          | ramen        | 12    | Y      |
-| B           | 2021-01-01T00:00:00.000Z | 2          | curry        | 15    | N      |
-| B           | 2021-01-02T00:00:00.000Z | 2          | curry        | 15    | N      |
-| B           | 2021-01-04T00:00:00.000Z | 1          | sushi        | 10    | N      |
-| B           | 2021-01-11T00:00:00.000Z | 1          | sushi        | 10    | Y      |
-| B           | 2021-01-16T00:00:00.000Z | 3          | ramen        | 12    | Y      |
-| B           | 2021-02-01T00:00:00.000Z | 3          | ramen        | 12    | Y      |
-| C           | 2021-01-01T00:00:00.000Z | 3          | ramen        | 12    | N      |
-| C           | 2021-01-01T00:00:00.000Z | 3          | ramen        | 12    | N      |
-| C           | 2021-01-07T00:00:00.000Z | 3          | ramen        | 12    | N      |
-
----
 -- BONUS QUESTION 2: Rank All The Things
 
     WITH joined_table AS(
@@ -84,26 +65,7 @@
     FROM
       joined_table;
 
-| customer_id | order_date               | product_id | product_name | price | member | ranking |
-| ----------- | ------------------------ | ---------- | ------------ | ----- | ------ | ------- |
-| A           | 2021-01-01T00:00:00.000Z | 1          | sushi        | 10    | N      |         |
-| A           | 2021-01-01T00:00:00.000Z | 2          | curry        | 15    | N      |         |
-| A           | 2021-01-07T00:00:00.000Z | 2          | curry        | 15    | Y      | 1       |
-| A           | 2021-01-10T00:00:00.000Z | 3          | ramen        | 12    | Y      | 2       |
-| A           | 2021-01-11T00:00:00.000Z | 3          | ramen        | 12    | Y      | 3       |
-| A           | 2021-01-11T00:00:00.000Z | 3          | ramen        | 12    | Y      | 3       |
-| B           | 2021-01-01T00:00:00.000Z | 2          | curry        | 15    | N      |         |
-| B           | 2021-01-02T00:00:00.000Z | 2          | curry        | 15    | N      |         |
-| B           | 2021-01-04T00:00:00.000Z | 1          | sushi        | 10    | N      |         |
-| B           | 2021-01-11T00:00:00.000Z | 1          | sushi        | 10    | Y      | 1       |
-| B           | 2021-01-16T00:00:00.000Z | 3          | ramen        | 12    | Y      | 2       |
-| B           | 2021-02-01T00:00:00.000Z | 3          | ramen        | 12    | Y      | 3       |
-| C           | 2021-01-01T00:00:00.000Z | 3          | ramen        | 12    | N      |         |
-| C           | 2021-01-01T00:00:00.000Z | 3          | ramen        | 12    | N      |         |
-| C           | 2021-01-07T00:00:00.000Z | 3          | ramen        | 12    | N      |         |
-
-------------------------------------------------------
-
+-- ----------------------------------------------------
 -- 1. What is the total amount each customer spent at the restaurant?
 
     SELECT
@@ -134,14 +96,7 @@
     ORDER BY
       customer_id;
 
-| customer_id | total_spent |
-| ----------- | ----------- |
-| A           | 76          |
-| B           | 74          |
-| C           | 36          |
-
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 2. How many days has each customer visited the restaurant?
 
     SELECT
@@ -152,13 +107,7 @@
     GROUP BY
       customer_id;
 
-| customer_id | count |
-| ----------- | ----- |
-| A           | 4     |
-| B           | 6     |
-| C           | 2     |
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 3. What was the first item from the menu purchased by each customer?
 
     SELECT
@@ -190,14 +139,7 @@
     ORDER BY
       customer_id;
 
-| customer_id | product_name |
-| ----------- | ------------ |
-| A           | curry        |
-| A           | sushi        |
-| B           | curry        |
-| C           | ramen        |
-
-  ------------------------------------------------------
+  -- ----------------------------------------------------
   -- 4. What is the most purchased item on the menu and how many times was it purchased by all customers?
 
     SELECT
@@ -215,11 +157,7 @@
       total_order DESC
     LIMIT 1;
 
-| product_id | product_name | total_order |
-| ---------- | ------------ | ----------- |
-| 3          | ramen        | 8           |
-
---------------------------------------------------------
+-- ------------------------------------------------------
 -- 5. Which item was the most popular for each customer?
 
     SELECT
@@ -263,13 +201,7 @@
     GROUP BY
     customer_id;
 
-| customer_id | favorite_product |
-| ----------- | ---------------- |
-| A           | 3                |
-| B           | 3, 1, 2          |
-| C           | 3                |
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 6. Which item was purchased first by the customer after they became a member?
 
     SELECT
@@ -319,12 +251,7 @@
       ) as ranking_table
     WHERE ranking = 1;
 
-| customer_id | product_id | product_name | order_date               |
-| ----------- | ---------- | ------------ | ------------------------ |
-| A           | 2          | curry        | 2021-01-07T00:00:00.000Z |
-| B           | 1          | sushi        | 2021-01-11T00:00:00.000Z |
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 7. Which item was purchased just before the customer became a member?
 
     SELECT
@@ -396,12 +323,7 @@
     GROUP BY
       customer_id;
 
-| customer_id | favorite_product |
-| ----------- | ---------------- |
-| A           | curry, sushi     |
-| B           | sushi            |
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 8) What is the total items and amount spent for each member before they became a member?
 
     SELECT
@@ -465,13 +387,7 @@
         GROUP BY
           customer_id;
 
-| customer_id | items | price_paid |
-| ----------- | ----- | ---------- |
-| B           | 3     | 40         |
-| A           | 2     | 25         |
-
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 9.  If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 
     SELECT
@@ -510,12 +426,7 @@
     ORDER BY
       customer_id;
 
-| customer_id | customer_points |
-| ----------- | --------------- |
-| A           | 510             |
-| B           | 440             |
-
-------------------------------------------------------
+-- ----------------------------------------------------
 -- 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, 
 --     not just sushi - how many points do customer A and B have at the end of January?
 
@@ -560,24 +471,3 @@
     ORDER BY
       customer_id;
 
-| customer_id | customer_points |
-| ----------- | --------------- |
-| A           | 1020            |
-| B           | 440             |
-
----
-
-[View on DB Fiddle](https://www.db-fiddle.com/f/2rM8RAnq7h5LLDTzZiRWcd/18)
-© 2021 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
-Loading complete
