@@ -1,0 +1,324 @@
+-- Data with Danny - 8 Week Challenge (Week 2)
+-- https://8weeksqlchallenge.com/case-study-2/
+
+-- Done with PostgreSQL
+
+--PART 2: Runner and Customer Experience!
+
+--1) How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+--2) What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+--3) Is there any relationship between the number of pizzas and how long the order takes to prepare?
+--4) What was the average distance travelled for each customer?
+--5) What was the difference between the longest and shortest delivery times for all orders?
+--6) What was the average speed for each runner for each delivery and do you notice any trend for these values?
+--7) What is the successful delivery percentage for each runner?
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+--Previous tables which we will still use for this part:
+
+
+    DROP TABLE IF EXISTS runner_orders_cleaned;
+    CREATE TEMP TABLE runner_orders_cleaned AS WITH first_layer AS (
+      SELECT
+        order_id,
+        runner_id,
+        CAST(
+          CASE
+            WHEN pickup_time = 'null' THEN NULL
+            ELSE pickup_time
+          END AS timestamp
+        ) AS pickup_time,
+        CASE
+          WHEN distance = '' THEN NULL
+          WHEN distance = 'null' THEN NULL
+          ELSE distance
+        END as distance,
+        CASE
+          WHEN duration = '' THEN NULL
+          WHEN duration = 'null' THEN NULL
+          ELSE duration
+        END as duration,
+        CASE
+          WHEN cancellation = '' THEN NULL
+          WHEN cancellation = 'null' THEN NULL
+          ELSE cancellation
+        END as cancellation
+      FROM
+        runner_orders
+    )
+    SELECT
+      order_id,
+      runner_id,
+      pickup_time,
+      CAST( regexp_replace(distance, '[a-z]+', '' ) AS DECIMAL(5,2) ) AS distance,
+    	CAST( regexp_replace(duration, '[a-z]+', '' ) AS INT ) AS duration,
+    	cancellation
+    FROM
+      first_layer;
+
+---
+
+     DROP TABLE IF EXISTS customer_orders_cleaned;
+    CREATE TEMP TABLE customer_orders_cleaned AS WITH first_layer AS (
+      SELECT
+        order_id,
+        customer_id,
+        pizza_id,
+        CASE
+          WHEN exclusions = '' THEN NULL
+          WHEN exclusions = 'null' THEN NULL
+          ELSE exclusions
+        END as exclusions,
+        CASE
+          WHEN extras = '' THEN NULL
+          WHEN extras = 'null' THEN NULL
+          ELSE extras
+        END as extras,
+        order_time
+      FROM
+        customer_orders
+    )
+    SELECT
+      ROW_NUMBER() OVER (      -- We are adding a row_number rank to deal with orders having multiple times the same pizza in it
+        ORDER BY
+          order_id,
+          pizza_id
+      ) AS row_number_order,
+      order_id,
+      customer_id,
+      pizza_id,
+      exclusions,
+      extras,
+      order_time
+    FROM
+      first_layer;
+
+
+
+---
+-- New temp table for this part
+
+    DROP TABLE IF EXISTS parties_experience;
+    CREATE TEMP TABLE parties_experience AS
+    SELECT
+      C.order_id,
+      C.customer_id,
+      C.pizza_id,
+      R.runner_id,
+      R.distance,
+      R.duration,
+      C.order_time,
+      R.pickup_time
+    FROM
+      customer_orders_cleaned AS C
+    LEFT JOIN runner_orders_cleaned AS R ON C.order_id = R.order_id
+    WHERE
+      R.cancellation IS NULL
+    ORDER BY
+      order_id;
+
+------------------------------------------------------
+--1) How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+
+    SELECT
+      week_signed_up,
+      COUNT(week_signed_up) as runners_signed_up
+    FROM
+    (
+    SELECT
+      runner_id,
+      CAST(to_char(registration_date, 'WW') AS NUMERIC) AS week_signed_up
+    FROM
+      runners) AS runner_sign_date
+    GROUP BY
+      week_signed_up
+    ORDER BY
+      week_signed_up;
+
+| week_signed_up | runners_signed_up |
+| -------------- | ----------------- |
+| 1              | 2                 |
+| 2              | 1                 |
+| 3              | 1                 |
+
+------------------------------------------------------
+--2) What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+
+    SELECT
+      runner_id,
+      ROUND(
+        CAST(
+          AVG(
+            (
+              DATE_PART('hour', pickup_time - order_time) * 60 + DATE_PART('minute', pickup_time - order_time)
+            ) * 60 + DATE_PART('second', pickup_time - order_time)
+          ) AS NUMERIC
+        ),
+        2
+      ) AS avg_delivery_time
+    FROM
+      parties_experience
+    GROUP BY
+      runner_id
+    ORDER BY
+      runner_id;
+
+| runner_id | avg_delivery_time |
+| --------- | ----------------- |
+| 1         | 940.67            |
+| 2         | 1423.20           |
+| 3         | 628.00            |
+
+------------------------------------------------------
+--3) Is there any relationship between the number of pizzas and how long the order takes to prepare?
+
+    SELECT
+      count_pizza_ordered,
+      ROUND(AVG(avg_delivery_time),2) AS avg_preparation_time_seconds
+    FROM
+      (
+      SELECT 
+        order_id,
+        COUNT(pizza_id) AS count_pizza_ordered,
+        ROUND(CAST(AVG((DATE_PART('hour', pickup_time - order_time) * 60 
+            + DATE_PART('minute', pickup_time - order_time)) * 60 
+            + DATE_PART('second', pickup_time - order_time)) AS NUMERIC),2)      AS avg_delivery_time
+      FROM
+        parties_experience
+      GROUP BY
+        order_id) AS order_metrics
+    GROUP BY
+      count_pizza_ordered
+    ORDER BY
+      count_pizza_ordered;
+
+| count_pizza_ordered | avg_preparation_time_seconds |
+| ------------------- | ---------------------------- |
+| 1                   | 741.40                       |
+| 2                   | 1102.50                      |
+| 3                   | 1757.00                      |
+
+
+-- The number of pizzas ordered seems to be correlated to the preparation time
+
+
+------------------------------------------------------
+--4) What was the average distance travelled for each customer?
+
+    SELECT
+      customer_id,
+      ROUND(AVG(distance),2)
+    FROM
+      parties_experience
+    GROUP BY
+      customer_id
+    ORDER BY
+      customer_id;
+
+| customer_id | round |
+| ----------- | ----- |
+| 101         | 20.00 |
+| 102         | 16.73 |
+| 103         | 23.40 |
+| 104         | 10.00 |
+| 105         | 25.00 |
+
+------------------------------------------------------
+--5) What was the difference between the longest and shortest delivery times for all orders?
+
+    SELECT
+      max_duration - min_duration AS difference_delivery_time_seconds
+    FROM
+      (
+      SELECT 
+        MAX(duration) AS max_duration,
+        MIN(duration) AS min_duration
+      FROM
+        parties_experience) as first_layer;
+
+| difference_delivery_time_seconds |
+| -------------------------------- |
+| 30                               |
+
+------------------------------------------------------
+--6) What was the average speed for each runner for each delivery and do you notice any trend for these values?
+
+    SELECT
+      runner_id,
+      order_id,
+      ROUND(
+        (distance::NUMERIC/(duration::NUMERIC/60)),2) AS speed,
+      distance
+    FROM
+      parties_experience
+    GROUP BY
+      runner_id,
+      order_id,
+      speed,
+      distance
+    ORDER BY
+      runner_id, order_id;
+
+| runner_id | order_id | speed | distance |
+| --------- | -------- | ----- | -------- |
+| 1         | 1        | 37.50 | 20.00    |
+| 1         | 2        | 44.44 | 20.00    |
+| 1         | 3        | 40.20 | 13.40    |
+| 1         | 10       | 60.00 | 10.00    |
+| 2         | 4        | 35.10 | 23.40    |
+| 2         | 7        | 60.00 | 25.00    |
+| 2         | 8        | 93.60 | 23.40    |
+| 3         | 5        | 40.00 | 10.00    |
+
+------------------------------------------------------
+--7) What is the successful delivery percentage for each runner?
+
+    --UPDATE TEMP TABLE, this time taking in account the NULL values:
+    DROP TABLE IF EXISTS parties_experience;
+    CREATE TEMP TABLE parties_experience AS
+    SELECT
+      C.order_id,
+      C.customer_id,
+      C.pizza_id,
+      R.runner_id,
+      R.distance,
+      R.duration,
+      C.order_time,
+      R.pickup_time,
+      R.cancellation
+    FROM
+      customer_orders_cleaned AS C
+    LEFT JOIN runner_orders_cleaned AS R ON C.order_id = R.order_id
+    ORDER BY
+      order_id;
+---
+
+    SELECT
+      runner_id,
+      ROUND(
+        100 * SUM(successful_orders::numeric) / COUNT(successful_orders::numeric),2) AS percentage_successful_delivery
+    FROM
+      (SELECT
+        runner_id,
+        order_id,
+        CASE WHEN cancellation IS NOT NULL then 0 ELSE 1 END AS successful_orders
+      FROM
+        parties_experience
+      GROUP BY
+        runner_id,
+        order_id,
+        cancellation
+      ORDER BY
+        runner_id, order_id) as first_layer
+    GROUP BY
+      runner_id;
+
+| runner_id | percentage_successful_delivery |
+| --------- | ------------------------------ |
+| 1         | 100.00                         |
+| 2         | 75.00                          |
+| 3         | 50.00                          |
+
+------------------------------------------------------
+
+[View on DB Fiddle](https://www.db-fiddle.com/f/7VcQKQwsS3CTkGRFG7vu98/4)
