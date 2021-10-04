@@ -24,7 +24,7 @@ He has many questions to be answered related to different general topic:
 ![Entity diagram](/images/ER_case_2.png?raw=true "ER case 2")
 
 ## Case Study Questions
-View my solution [here](https://github.com/AymericPeltier/8-Week-SQL-Challenge/blob/main/Case%20Study%20%232:%20Pizza%20Runner/SQL_code/Complete_Solution=
+View my solution [here](https://github.com/AymericPeltier/8-Week-SQL-Challenge/blob/main/Case%20Study%20%232:%20Pizza%20Runner/SQL_code/Complete_Solution)
 
 ### A. Pizza Metrics
 
