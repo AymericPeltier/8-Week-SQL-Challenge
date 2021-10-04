@@ -3,7 +3,8 @@
 -- https://8weeksqlchallenge.com/case-study-1/ --
 -------------------------------------------------
 -- Done with PostgreSQL
--- by Aymeric Peltier
+-- By Aymeric Peltier
+-- Date: 19/05/2021
 
 -- **Schema (PostgreSQL v13)**
 CREATE TABLE sales (
