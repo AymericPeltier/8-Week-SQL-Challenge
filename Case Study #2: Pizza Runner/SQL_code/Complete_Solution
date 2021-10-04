@@ -263,6 +263,7 @@ SELECT ROW_NUMBER() OVER (
     extras,
     order_time
 FROM first_layer;
+
 -----------------------------------------------
 -- Second: runner_orders:
 DROP TABLE IF EXISTS runner_orders_cleaned;
@@ -317,19 +318,28 @@ FROM first_layer;
 --9) What was the total volume of pizzas ordered for each hour of the day?
 --10) What was the volume of orders for each day of the week?
 --1) How many pizzas were ordered?
+
 SELECT COUNT(pizza_id) AS number_of_pizza_ordered
-FROM customer_orders_cleaned --2) How many unique customer orders were made?
+FROM customer_orders_cleaned 
+
+--2) How many unique customer orders were made?
 SELECT COUNT(DISTINCT order_id) AS distinct_orders
-FROM customer_orders_cleaned --3) How many successful orders were delivered by each runner?
+FROM customer_orders_cleaned 
+
+--3) How many successful orders were delivered by each runner?
 SELECT COUNT(order_id) AS distinct_orders
 FROM runner_orders_cleaned
-WHERE cancellation IS NULL --4) How many of each type of pizza was delivered?
+WHERE cancellation IS NULL 
+
+--4) How many of each type of pizza was delivered?
 SELECT C.pizza_id,
     COUNT(C.pizza_id) as pizza_delivered
 FROM customer_orders_cleaned AS C
     LEFT JOIN runner_orders_cleaned AS R ON C.order_id = R.order_id
 WHERE R.cancellation IS NULL
-GROUP BY pizza_id --5) How many Vegetarian and Meatlovers were ordered by each customer?
+GROUP BY pizza_id 
+
+--5) How many Vegetarian and Meatlovers were ordered by each customer?
 SELECT customer_id,
     SUM(
         CASE
@@ -345,12 +355,16 @@ SELECT customer_id,
     ) as vegetarians
 FROM customer_orders_cleaned
 GROUP BY customer_id
-ORDER BY customer_id --6) What was the maximum number of pizzas delivered in a single order?
+ORDER BY customer_id 
+
+--6) What was the maximum number of pizzas delivered in a single order?
 SELECT order_id,
     COUNT(pizza_id) as pizzas_delivered
 FROM customer_orders_cleaned
 GROUP BY order_id
-ORDER BY pizzas_delivered DESC --7) For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
+ORDER BY pizzas_delivered DESC 
+
+--7) For each customer, how many delivered pizzas had at least 1 change and how many had no changes?
 SELECT customer_id,
     SUM(
         CASE
@@ -372,7 +386,9 @@ SELECT customer_id,
     ) as no_changes
 FROM customer_orders_cleaned
 GROUP BY customer_id
-ORDER BY customer_id --8) How many pizzas were delivered that had both exclusions and extras?
+ORDER BY customer_id 
+
+--8) How many pizzas were delivered that had both exclusions and extras?
 SELECT SUM(
         CASE
             WHEN (
@@ -382,7 +398,9 @@ SELECT SUM(
             ELSE 0
         END
     ) as exclusions_and_extra
-FROM customer_orders_cleaned --9) What was the total volume of pizzas ordered for each hour of the day?
+FROM customer_orders_cleaned 
+
+--9) What was the total volume of pizzas ordered for each hour of the day?
 SELECT extract(
         hour
         from order_time
@@ -404,7 +422,9 @@ SELECT extract(
     ) AS volume_pizza_ordered
 FROM customer_orders_cleaned
 GROUP BY order_hour
-ORDER BY order_hour --10) What was the volume of orders for each day of the week?
+ORDER BY order_hour 
+
+--10) What was the volume of orders for each day of the week?
 SELECT to_char(order_time, 'Day') AS day_ordered,
     COUNT(to_char(order_time, 'Day')) AS count_pizza_ordered,
     ROUND(
@@ -413,17 +433,20 @@ SELECT to_char(order_time, 'Day') AS day_ordered,
     ) AS volume_pizza_ordered
 FROM customer_orders_cleaned
 GROUP BY day_ordered
-ORDER BY day_ordered --------------------------------------------------------------
-    --PART 2: Runner and Customer Experience!
-    --1) How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
-    --2) What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
-    --3) Is there any relationship between the number of pizzas and how long the order takes to prepare?
-    --4) What was the average distance travelled for each customer?
-    --5) What was the difference between the longest and shortest delivery times for all orders?
-    --6) What was the average speed for each runner for each delivery and do you notice any trend for these values?
-    --7) What is the successful delivery percentage for each runner?
-    --Creating a temporary table:
-    DROP TABLE IF EXISTS parties_experience;
+ORDER BY day_ordered 
+
+--------------------------------------------------------------
+--PART 2: Runner and Customer Experience!
+--1) How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
+--2) What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to pickup the order?
+--3) Is there any relationship between the number of pizzas and how long the order takes to prepare?
+--4) What was the average distance travelled for each customer?
+--5) What was the difference between the longest and shortest delivery times for all orders?
+--6) What was the average speed for each runner for each delivery and do you notice any trend for these values?
+--7) What is the successful delivery percentage for each runner?
+
+--Creating a temporary table:
+DROP TABLE IF EXISTS parties_experience;
 CREATE TEMP TABLE parties_experience AS
 SELECT C.order_id,
     C.customer_id,
@@ -437,6 +460,7 @@ FROM customer_orders_cleaned AS C
     LEFT JOIN runner_orders_cleaned AS R ON C.order_id = R.order_id
 WHERE R.cancellation IS NULL
 ORDER BY order_id;
+
 --1) How many runners signed up for each 1 week period? (i.e. week starts 2021-01-01)
 SELECT week_signed_up,
     COUNT(week_signed_up) as runners_signed_up
@@ -447,6 +471,7 @@ FROM (
     ) AS runner_sign_date
 GROUP BY week_signed_up
 ORDER BY week_signed_up;
+
 --2) What was the average time in minutes it took for each runner to arrive at the Pizza Runner HQ to 
 --   pickup the order?
 SELECT runner_id,
@@ -463,6 +488,7 @@ SELECT runner_id,
 FROM parties_experience
 GROUP BY runner_id
 ORDER BY runner_id;
+
 --3) Is there any relationship between the number of pizzas and how long the order takes to prepare?
 SELECT count_pizza_ordered,
     ROUND(AVG(avg_delivery_time), 2) AS avg_preparation_time_seconds
@@ -485,12 +511,14 @@ FROM (
 GROUP BY count_pizza_ordered
 ORDER BY count_pizza_ordered;
 -- The number of pizzas ordered seems to be correlated to the preparation time
+
 --4) What was the average distance travelled for each customer?
 SELECT customer_id,
     ROUND(AVG(distance), 2)
 FROM parties_experience
 GROUP BY customer_id
 ORDER BY customer_id;
+
 --5) What was the difference between the longest and shortest delivery times for all orders?
 SELECT max_duration - min_duration AS difference_delivery_time_seconds
 FROM (
@@ -498,6 +526,7 @@ FROM (
             MIN(duration) AS min_duration
         FROM parties_experience
     ) AS first_layer;
+
 --6) What was the average speed for each runner for each delivery and do you notice any trend for these values?
 SELECT runner_id,
     order_id,
@@ -515,6 +544,7 @@ ORDER BY runner_id,
     order_id;
 -- The runners seem to increase their speed from orders to orders. However, this speed increases is not 
 -- correlated to distance (which could indicates either tiredness or use of a different vehicules). We do not have enough data to produce interesting insghts yet.
+
 --7) What is the successful delivery percentage for each runner?
 --UPDATE TEMP TABLE, this time taking in account the NULL values:
 DROP TABLE IF EXISTS parties_experience;
@@ -551,8 +581,10 @@ FROM (
             order_id
     ) as first_layer
 GROUP BY runner_id;
+
 -------------------------------------------------------
-PART 3: Ingredient Optimisation ! --Questions:
+--PART 3: Ingredient Optimisation ! 
+--Questions:
 -- 1) What are the standard ingredients for each pizza?
 -- 2) What was the most commonly added extra?
 -- 3) What was the most common exclusion?
@@ -564,6 +596,7 @@ PART 3: Ingredient Optimisation ! --Questions:
 -- 5) Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 --     For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
 -- 6) What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
+
 -- 1) What are the standard ingredients for each pizza?
 WITH pizza_recipes_unstacked AS (
     SELECT pizza_id,
@@ -583,6 +616,7 @@ FROM pizza_names t1
     JOIN pizza_toppings t3 ON t2.topping_id = t3.topping_id
 ORDER BY t1.pizza_id,
     t2.topping_id;
+
 --2) What was the most commonly added extra?
 SELECT extras,
     topping_name,
@@ -598,6 +632,7 @@ FROM (
 GROUP BY extras,
     topping_name
 ORDER BY times_ordered DESC;
+
 -- 3) What was the most common exclusion?
 SELECT exclusions,
     topping_name,
@@ -613,6 +648,7 @@ FROM (
 GROUP BY exclusions,
     topping_name
 ORDER BY times_ordered DESC;
+
 -- 4) Generate an order item for each record in the customers_orders table in the format of one of the following:
 --     Meat Lovers
 --     Meat Lovers - Exclude Beef
@@ -702,8 +738,10 @@ FROM (
         FROM tabular_modifications
     ) AS Modified_concat
 ORDER BY order_id;
+
 -- 5) Generate an alphabetically ordered comma separated ingredient list for each pizza order from the customer_orders table and add a 2x in front of any relevant ingredients
 --     For example: "Meat Lovers: 2xBacon, Beef, ... , Salami"
+
 -- Step 1: create basic recipe table (recycling question 1)
 DROP TABLE IF EXISTS classical_recipe;
 CREATE TEMP TABLE classical_recipe AS WITH pizza_recipes_unstacked AS (
@@ -726,6 +764,7 @@ FROM pizza_names t1
     JOIN pizza_recipes_unstacked t2 ON t1.pizza_id = t2.pizza_id
     JOIN pizza_toppings t3 ON t2.topping_id = t3.topping_id
     RIGHT JOIN customer_orders_cleaned t4 ON t1.pizza_id = t4.pizza_id;
+
 -- Step 2: unpivot extras and exclusions table into 2 separated table:
 DROP TABLE IF EXISTS orders_exclusions;
 CREATE TEMP TABLE orders_exclusions AS
@@ -758,6 +797,7 @@ SELECT row_number_order,
 FROM customer_orders_cleaned
     JOIN pizza_names ON customer_orders_cleaned.pizza_id = pizza_names.pizza_id
 ORDER BY order_id;
+
 --step 3: Join all the tables (Union extras, Except exclusions):
 DROP TABLE IF EXISTS pizzas_details;
 CREATE TEMP TABLE pizzas_details AS WITH first_layer AS (
@@ -791,6 +831,7 @@ ORDER BY row_number_order,
     order_id,
     pizza_id,
     topping_id;
+
 -- Step 4: let's  now reshape the data to answer the question
 WITH counting_table AS(
     --Count how many times each ingredient is used
@@ -842,6 +883,7 @@ SELECT row_number_order,
 FROM group_text
 ORDER BY row_number_order,
     order_id;
+
 -- 6) What is the total quantity of each ingredient used in all delivered pizzas sorted by most frequent first?
 SELECT topping_id,
     topping_name,
@@ -850,9 +892,10 @@ FROM pizzas_details
 GROUP BY topping_id,
     topping_name
 ORDER BY time_used DESC;
+
 -------------------------------------------------------
-PART 4: Pricing
-and Ratings ! --Questions:
+--PART 4: Pricing and Ratings ! 
+--Questions:
 -- 1) If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner
 --    made so far if there are no delivery fees?
 -- 2) What if there was an additional $1 charge for any pizza extras?
@@ -882,8 +925,10 @@ and Ratings ! --Questions:
 -- 7) If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre
 --    traveled - how much money does Pizza Runner have left over after these deliveries?
 -- 8) If 1 unit of each ingredient costs $0.50 - how much net revenue will Pizza Runner make if the costs from question 30 are used?
+
 -- 1) If a Meat Lovers pizza costs $12 and Vegetarian costs $10 and there were no charges for changes - how much money has Pizza Runner
 --    made so far if there are no delivery fees?
+
 --Let's create a temp table to make this more organized. I do not append those information to existing tables as it would require discussion
 -- with the person managing the database (in a real situation). I'll use another method.
 DROP TABLE IF EXISTS pizza_prices;
@@ -903,8 +948,10 @@ WITH profit_table AS (
 )
 SELECT SUM(pizza_revenues) AS total_revenue
 FROM profit_table;
+
 -- 2) What if there was an additional $1 charge for any pizza extras?
 -- - Add cheese is $1 extra
+
 -- let's recycle last part queries:
 DROP TABLE IF EXISTS orders_extras;
 CREATE TEMP TABLE orders_extras AS
@@ -951,9 +998,11 @@ WITH segmented_revenues AS (
 )
 SELECT SUM(total_revenues) AS total_revenues
 FROM segmented_revenues;
+
 -- 3) What if substitutes were allowed at no additional cost but any additional extras were charged at $1?
 -- - Exclude Cheese and add Bacon is free
 -- - Exclude Cheese but add bacon and beef costs $1 extra
+
 -- Step 1: create an unstacked table with the extras and exceptions 
 DROP TABLE IF EXISTS exclusions_extras_unstacked;
 CREATE TEMP TABLE exclusions_extras_unstacked AS
@@ -971,6 +1020,7 @@ SELECT row_number_order,
 FROM customer_orders_cleaned
     JOIN pizza_names ON customer_orders_cleaned.pizza_id = pizza_names.pizza_id
 ORDER BY order_id;
+
 --Step 2: create a balance to see if we had more extras than exclusions
 WITH order_layer AS (
     SELECT row_number_order,
@@ -1006,6 +1056,7 @@ SELECT pizza_id,
     SUM(substitutes_cost) AS substitutes_cost
 FROM pizza_layer
 GROUP BY pizza_id;
+
 --Step 3: Change the LEFT JOIN in our last question query with the one created in step 2.
 WITH segmented_revenues AS (
     SELECT table1.pizza_id,
@@ -1061,11 +1112,13 @@ WITH segmented_revenues AS (
 )
 SELECT SUM(total_revenues) AS total_revenues
 FROM segmented_revenues;
+
 -- 4) What if meat substitutes and vegetable substitutes were allowed but any change outside were charged at $2 and $1 respectively?
 -- - Exclude Cheese and add Bacon is $2 extra
 -- - Exclude Beef and add mushroom is $1 extra
 -- - Exclude Beef and add Bacon is free
 -- - Exclude Beef and Mushroom, and add Bacon and Cheese is free
+
 -- Table 2: Just as before, we will not modify existing tables.
 DROP TABLE IF EXISTS modification_prices;
 CREATE TEMP TABLE modification_prices (
@@ -1166,6 +1219,7 @@ SELECT pizza_id,
     SUM(fees_type1) + SUM(fees_type2) AS substitutes_cost
 FROM fees_type
 GROUP BY pizza_id;
+
 --Step 3: Compute the total revenues with the previously used queries:
 WITH segmented_revenues AS (
     SELECT table1.pizza_id,
@@ -1258,6 +1312,7 @@ WITH segmented_revenues AS (
 )
 SELECT SUM(total_revenues) AS total_revenues
 FROM segmented_revenues;
+
 -- 5)The Pizza Runner team now wants to add an additional ratings system that allows customers to rate their runner, 
 --   how would you design an additional table for this new dataset - generate a schema for this new table and insert 
 --   your own data for ratings for each successful customer order between 1 to 5.
@@ -1290,6 +1345,7 @@ VALUES ('1', '2', 'Tasty'),
     );
 SELECT *
 FROM runner_ratings;
+
 -- 6)Using your newly generated table - can you join all of the information together to form a table which has the following information for successful deliveries?
 -- - customer_id
 -- - order_id
@@ -1301,6 +1357,7 @@ FROM runner_ratings;
 -- - Delivery duration
 -- - Average speed
 -- - Total number of pizzas
+
 DROP TABLE IF EXISTS Global_table;
 CREATE TEMP TABLE Global_table AS WITH runner_layer1 AS (
     SELECT order_id,
@@ -1378,8 +1435,11 @@ GROUP BY t1.order_id,
     t2.customer_id,
     t2.order_time,
     t3.rating;
+
 SELECT *
-FROM Global_table -- 7) If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre
+FROM Global_table 
+
+-- 7) If a Meat Lovers pizza was $12 and Vegetarian $10 fixed prices with no cost for extras and each runner is paid $0.30 per kilometre
     --    traveled - how much money does Pizza Runner have left over after these deliveries?
     WITH pizza_revenues AS(
         SELECT t1.order_id,
@@ -1405,6 +1465,7 @@ FROM Global_table -- 7) If a Meat Lovers pizza was $12 and Vegetarian $10 fixed 
     )
 SELECT ROUND(SUM(order_revenues) - SUM(delivery_COST), 2) AS revenues_afterdelivery
 FROM revenues_delivery;
+
 -- 8) If 1 unit of each ingredient costs $0.50 - how much net revenue will Pizza Runner make if the costs from question 30 are used?
 --Let's go back to previous queries where we obtained how many times each ingredients were used (question 5 & 6 of part Ingredient Optimization)
 DROP TABLE IF EXISTS classical_recipe;
@@ -1459,6 +1520,7 @@ SELECT row_number_order,
 FROM customer_orders_cleaned
     JOIN pizza_names ON customer_orders_cleaned.pizza_id = pizza_names.pizza_id
 ORDER BY order_id;
+
 --step 3: Join all the tables (Union extras, Except exclusions):
 DROP TABLE IF EXISTS pizzas_details;
 CREATE TEMP TABLE pizzas_details AS WITH first_layer AS (
@@ -1492,12 +1554,14 @@ ORDER BY row_number_order,
     order_id,
     pizza_id,
     topping_id;
+
 --Detail of the query to get the ingredients' cost per order_id
 SELECT order_id,
     COUNT(topping_id) * 0.5 as ingredient_costs
 FROM pizzas_details
 GROUP BY order_id
 ORDER BY order_id;
+
 --Now let's fill this in the query of the previous question:
 WITH pizza_revenues AS(
     SELECT t1.order_id,
