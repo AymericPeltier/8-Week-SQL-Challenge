@@ -1,7 +1,11 @@
-  -- Data with Danny - 8 Week Challenge (Week 1)
--- https://8weeksqlchallenge.com/case-study-1/
-
+-------------------------------------------------
+-- Data with Danny - 8 Week Challenge (Week 1) --
+-- https://8weeksqlchallenge.com/case-study-1/ --
+-------------------------------------------------
 -- Done with PostgreSQL
+-- by Aymeric Peltier
+
+-- For the schema, please refer to https://github.com/AymericPeltier/8-Week-SQL-Challenge/blob/main/Case%20Study%20%231%20-%20Danny's%20Diner/SQL_code.sql
 
 -- Case Study Questions
 -- Each of the following case study questions can be answered using a single SQL statement:
@@ -22,7 +26,6 @@
 -- 2) Rank all the things (see case link)
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-
 -- BONUS QUESTION 1; Join All The Things
 
     SELECT
